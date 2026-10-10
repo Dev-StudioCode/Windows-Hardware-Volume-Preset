@@ -2,7 +2,7 @@
 // @id              audio-hardware-volume-preset
 // @name            Audio Hardware Volume Preset
 // @description     Sets audio playback devices to a configured volume whenever they connect
-// @version         1.0.0
+// @version         1.1.0
 // @author          Community
 // @github          https://github.com/
 // @include         explorer.exe
@@ -17,11 +17,12 @@ Automatically sets your headphones, speakers, Bluetooth headsets, USB DACs, or a
 
 ## Key Features
 - **Prevent Sudden Hearing Blasts:** Never plug in headphones only to be blasted by 100% volume again.
-- **Device-Specific Presets:** Set specific volume levels for distinct hardware (e.g., "AirPods" at 30%, "Sony WH-1000XM4" at 25%, "Speakers" at 50%).
-- **Global Default Option:** Apply a sensible fallback volume to any newly connected audio device.
+- **Smart Hardware Matching:** Supports flexible keyword and token matching. You can enter simple keywords (like `Audiocular`, `Voicemeeter`, `Moonstone`) or full device names.
+- **Max Volume Safety Cap:** Set a safety ceiling (up to 100%) so no device ever exceeds your safe threshold.
+- **Global Fallback:** Set any unrecognized audio device to a safe default volume (e.g., 30%).
 - **Auto-Unmute:** Optionally unmute the device on connection.
-- **Intelligent Debouncing:** Prevents rapid re-triggering while allowing you to manually change volume afterward.
-- **Safe & Efficient:** Runs inside `explorer.exe` using standard Windows Core Audio event notifications (`IMMNotificationClient`). No polling, zero CPU overhead when idle.
+- **Intelligent Debouncing:** Prevents duplicate triggers when Windows fires multiple rapid connection events.
+- **Safe & Efficient:** Runs inside `explorer.exe` using standard Windows Core Audio event notifications (`IMMNotificationClient`). Zero polling, zero idle CPU usage.
 */
 // ==/WindhawkModReadme==
 
@@ -31,6 +32,10 @@ Automatically sets your headphones, speakers, Bluetooth headsets, USB DACs, or a
   $name: Default Volume (%)
   $description: Master volume percentage (0-100) applied when any audio hardware connects, if no specific rule matches.
 
+- maxVolumeLimit: 100
+  $name: Max Volume Safety Limit (%)
+  $description: Absolute maximum volume ceiling (0-100). No preset will ever exceed this value.
+
 - applyToAllDevices: true
   $name: Apply to all devices by default
   $description: If enabled, any connected playback device without an explicit rule will use the Default Volume.
@@ -39,25 +44,29 @@ Automatically sets your headphones, speakers, Bluetooth headsets, USB DACs, or a
   $name: Unmute on connect
   $description: Automatically unmutes the audio device when setting its volume.
 
-- applyOnStartup: false
+- applyOnStartup: true
   $name: Apply on mod startup
   $description: Immediately set volume for currently connected audio devices when the mod initializes.
 
 - deviceRules:
-  - - name: "Headphones"
-      $name: Device Name (keyword)
-    - volume: 25
+  - - name: "Audiocular"
+      $name: Device Name or Keyword
+    - volume: 50
       $name: Volume (%)
-  - - name: "AirPods"
-      $name: Device Name (keyword)
-    - volume: 30
+  - - name: "Voicemeeter"
+      $name: Device Name or Keyword
+    - volume: 100
       $name: Volume (%)
-  - - name: "Speakers"
-      $name: Device Name (keyword)
+  - - name: "Moonstone"
+      $name: Device Name or Keyword
+    - volume: 100
+      $name: Volume (%)
+  - - name: "Realtek"
+      $name: Device Name or Keyword
     - volume: 50
       $name: Volume (%)
   $name: Custom Device Presets
-  $description: Define custom volume percentages for specific hardware. Matches if the device name contains the specified text (case-insensitive).
+  $description: Custom volume percentages for specific hardware. Simply enter a keyword from your device name (e.g. Audiocular, Voicemeeter, Moonstone).
 */
 // ==/WindhawkModSettings==
 
@@ -74,16 +83,19 @@ Automatically sets your headphones, speakers, Bluetooth headsets, USB DACs, or a
 #include <cwctype>
 
 struct DeviceRule {
+    std::wstring originalName;
     std::wstring nameLower;
+    std::vector<std::wstring> tokens;
     int volume;
 };
 
 // Global Configuration & State
 static SRWLOCK g_lock = SRWLOCK_INIT;
 static int g_defaultVolume = 30;
+static int g_maxVolumeLimit = 100;
 static BOOL g_applyToAllDevices = TRUE;
 static BOOL g_autoUnmute = TRUE;
-static BOOL g_applyOnStartup = FALSE;
+static BOOL g_applyOnStartup = TRUE;
 static std::vector<DeviceRule> g_rules;
 
 // Debouncing state to prevent rapid duplicate events from Windows
@@ -103,12 +115,73 @@ static std::wstring ToLower(const std::wstring& str) {
     return result;
 }
 
+// Splits a string into alphanumeric tokens, filtering out generic device words
+static std::vector<std::wstring> GetTokens(const std::wstring& str) {
+    std::vector<std::wstring> tokens;
+    std::wstring cur;
+    for (wchar_t ch : str) {
+        if (iswalnum(ch)) {
+            cur += (wchar_t)towlower(ch);
+        } else {
+            if (!cur.empty()) {
+                if (cur != L"headphones" && cur != L"speakers" && cur != L"headset" && 
+                    cur != L"earphone" && cur != L"earphones" && cur != L"audio" && 
+                    cur != L"device" && cur != L"input" && cur != L"output" &&
+                    cur != L"vb" && cur != L"vaio") {
+                    tokens.push_back(cur);
+                }
+                cur.clear();
+            }
+        }
+    }
+    if (!cur.empty()) {
+        if (cur != L"headphones" && cur != L"speakers" && cur != L"headset" && 
+            cur != L"earphone" && cur != L"earphones" && cur != L"audio" && 
+            cur != L"device" && cur != L"input" && cur != L"output" &&
+            cur != L"vb" && cur != L"vaio") {
+            tokens.push_back(cur);
+        }
+    }
+    return tokens;
+}
+
+// Checks if a candidate device string matches a rule
+static bool CheckCandidateMatch(const std::wstring& candidate, const DeviceRule& rule) {
+    if (candidate.empty() || rule.nameLower.empty()) return false;
+
+    std::wstring candidateLower = ToLower(candidate);
+
+    // 1. Direct substring match in either direction
+    if (candidateLower.find(rule.nameLower) != std::wstring::npos ||
+        rule.nameLower.find(candidateLower) != std::wstring::npos) {
+        return true;
+    }
+
+    // 2. Token match (e.g. user entered "Headphones (3- Audiocular D07)" vs Windows "Speakers (3- Audiocular D07)")
+    auto devTokens = GetTokens(candidateLower);
+    for (const auto& rt : rule.tokens) {
+        if (rt.length() >= 2) {
+            for (const auto& dt : devTokens) {
+                if (dt == rt || dt.find(rt) != std::wstring::npos || rt.find(dt) != std::wstring::npos) {
+                    return true;
+                }
+            }
+        }
+    }
+
+    return false;
+}
+
 static void LoadSettings() {
     AcquireSRWLockExclusive(&g_lock);
 
     g_defaultVolume = Wh_GetIntSetting(L"defaultVolume");
     if (g_defaultVolume < 0) g_defaultVolume = 0;
     if (g_defaultVolume > 100) g_defaultVolume = 100;
+
+    g_maxVolumeLimit = Wh_GetIntSetting(L"maxVolumeLimit");
+    if (g_maxVolumeLimit < 0) g_maxVolumeLimit = 0;
+    if (g_maxVolumeLimit > 100) g_maxVolumeLimit = 100;
 
     g_applyToAllDevices = Wh_GetIntSetting(L"applyToAllDevices");
     g_autoUnmute = Wh_GetIntSetting(L"autoUnmute");
@@ -131,14 +204,20 @@ static void LoadSettings() {
         if (ruleVol < 0) ruleVol = 0;
         if (ruleVol > 100) ruleVol = 100;
 
-        g_rules.push_back({ ToLower(ruleName), ruleVol });
+        DeviceRule rule;
+        rule.originalName = ruleName;
+        rule.nameLower = ToLower(ruleName);
+        rule.tokens = GetTokens(rule.nameLower);
+        rule.volume = ruleVol;
+        g_rules.push_back(rule);
+
         Wh_FreeStringSetting(ruleName);
     }
 
     ReleaseSRWLockExclusive(&g_lock);
 
-    Wh_Log(L"Settings loaded. Default volume: %d%%, Apply all: %d, Auto-unmute: %d, Rules count: %zu",
-           g_defaultVolume, g_applyToAllDevices, g_autoUnmute, g_rules.size());
+    Wh_Log(L"Settings loaded. Default Vol: %d%%, Max Limit: %d%%, Apply All: %d, Startup: %d, Rules count: %zu",
+           g_defaultVolume, g_maxVolumeLimit, g_applyToAllDevices, g_applyOnStartup, g_rules.size());
 }
 
 static void ApplyVolumeToDevice(LPCWSTR pwstrDeviceId) {
@@ -177,32 +256,49 @@ static void ApplyVolumeToDevice(LPCWSTR pwstrDeviceId) {
         }
     }
 
-    // Retrieve friendly name of the device
-    WCHAR szDeviceName[256] = L"Unknown Device";
+    // Retrieve device properties (friendly name, interface name, description)
+    WCHAR szFriendlyName[256] = L"Unknown Device";
+    WCHAR szInterfaceName[256] = L"";
+    WCHAR szDeviceDesc[256] = L"";
+
     IPropertyStore* pProps = NULL;
     hr = pDevice->OpenPropertyStore(STGM_READ, &pProps);
     if (SUCCEEDED(hr) && pProps) {
-        PROPVARIANT varName;
-        PropVariantInit(&varName);
-        if (SUCCEEDED(pProps->GetValue(PKEY_Device_FriendlyName, &varName))) {
-            if (varName.vt == VT_LPWSTR && varName.pwszVal) {
-                wcsncpy_s(szDeviceName, varName.pwszVal, _TRUNCATE);
-            }
-            PropVariantClear(&varName);
+        PROPVARIANT var;
+        PropVariantInit(&var);
+
+        if (SUCCEEDED(pProps->GetValue(PKEY_Device_FriendlyName, &var)) && var.vt == VT_LPWSTR && var.pwszVal) {
+            wcsncpy_s(szFriendlyName, var.pwszVal, _TRUNCATE);
         }
+        PropVariantClear(&var);
+
+        if (SUCCEEDED(pProps->GetValue(PKEY_DeviceInterface_FriendlyName, &var)) && var.vt == VT_LPWSTR && var.pwszVal) {
+            wcsncpy_s(szInterfaceName, var.pwszVal, _TRUNCATE);
+        }
+        PropVariantClear(&var);
+
+        if (SUCCEEDED(pProps->GetValue(PKEY_Device_DeviceDesc, &var)) && var.vt == VT_LPWSTR && var.pwszVal) {
+            wcsncpy_s(szDeviceDesc, var.pwszVal, _TRUNCATE);
+        }
+        PropVariantClear(&var);
+
         pProps->Release();
     }
 
-    std::wstring nameLower = ToLower(szDeviceName);
+    Wh_Log(L"[Audio Event] Device connected: Friendly=\"%s\", Interface=\"%s\", Desc=\"%s\"",
+           szFriendlyName, szInterfaceName, szDeviceDesc);
+
     int targetVolume = -1;
+    std::wstring matchedRuleName;
 
     AcquireSRWLockShared(&g_lock);
-    // 1. Check custom rules for substring match
+    // 1. Check custom rules against all candidate names
     for (const auto& rule : g_rules) {
-        if (!rule.nameLower.empty() && nameLower.find(rule.nameLower) != std::wstring::npos) {
+        if (CheckCandidateMatch(szFriendlyName, rule) ||
+            CheckCandidateMatch(szInterfaceName, rule) ||
+            CheckCandidateMatch(szDeviceDesc, rule)) {
             targetVolume = rule.volume;
-            Wh_Log(L"Matched rule for \"%s\" (rule: \"%s\") -> Volume %d%%",
-                   szDeviceName, rule.nameLower.c_str(), targetVolume);
+            matchedRuleName = rule.originalName;
             break;
         }
     }
@@ -210,7 +306,15 @@ static void ApplyVolumeToDevice(LPCWSTR pwstrDeviceId) {
     // 2. If no custom rule matched, check if global default applies
     if (targetVolume == -1 && g_applyToAllDevices) {
         targetVolume = g_defaultVolume;
-        Wh_Log(L"Applying default volume to \"%s\" -> Volume %d%%", szDeviceName, targetVolume);
+        Wh_Log(L"  -> No custom rule matched. Applying global default volume: %d%%", targetVolume);
+    } else if (targetVolume != -1) {
+        Wh_Log(L"  -> Matched rule \"%s\" -> Target Volume: %d%%", matchedRuleName.c_str(), targetVolume);
+    }
+
+    // 3. Enforce max volume safety cap
+    if (targetVolume > g_maxVolumeLimit) {
+        targetVolume = g_maxVolumeLimit;
+        Wh_Log(L"  -> Capped by max volume limit to %d%%", targetVolume);
     }
 
     BOOL doUnmute = g_autoUnmute;
@@ -229,9 +333,9 @@ static void ApplyVolumeToDevice(LPCWSTR pwstrDeviceId) {
         float scalar = (float)targetVolume / 100.0f;
         hr = pEndpointVolume->SetMasterVolumeLevelScalar(scalar, NULL);
         if (SUCCEEDED(hr)) {
-            Wh_Log(L"Successfully set volume of \"%s\" to %d%%", szDeviceName, targetVolume);
+            Wh_Log(L"  -> Volume successfully applied: %d%% on \"%s\"", targetVolume, szFriendlyName);
         } else {
-            Wh_Log(L"Failed to set volume of \"%s\" (hr=0x%08X)", szDeviceName, hr);
+            Wh_Log(L"  -> Failed to set volume on \"%s\" (hr=0x%08X)", szFriendlyName, hr);
         }
 
         if (doUnmute) {
@@ -240,7 +344,7 @@ static void ApplyVolumeToDevice(LPCWSTR pwstrDeviceId) {
 
         pEndpointVolume->Release();
     } else {
-        Wh_Log(L"Failed to activate IAudioEndpointVolume for \"%s\" (hr=0x%08X)", szDeviceName, hr);
+        Wh_Log(L"  -> Failed to activate IAudioEndpointVolume for \"%s\" (hr=0x%08X)", szFriendlyName, hr);
     }
 
     pDevice->Release();
@@ -278,7 +382,7 @@ public:
         return ulRef;
     }
 
-    // Called when a device state changes (e.g., plugged in / Bluetooth connected -> ACTIVE)
+    // Called when a device state changes (e.g. plugged in / Bluetooth connected -> ACTIVE)
     STDMETHODIMP OnDeviceStateChanged(LPCWSTR pwstrDeviceId, DWORD dwNewState) override {
         if (dwNewState == DEVICE_STATE_ACTIVE && pwstrDeviceId) {
             Wh_Log(L"OnDeviceStateChanged (ACTIVE): %s", pwstrDeviceId);
@@ -298,7 +402,7 @@ public:
     // Called when the default output device switches
     STDMETHODIMP OnDefaultDeviceChanged(EDataFlow flow, ERole role, LPCWSTR pwstrDeviceId) override {
         if (flow == eRender && pwstrDeviceId) {
-            Wh_Log(L"OnDefaultDeviceChanged (flow=Render, role=%d): %s", role, pwstrDeviceId);
+            Wh_Log(L"OnDefaultDeviceChanged (Render, role=%d): %s", role, pwstrDeviceId);
             ApplyVolumeToDevice(pwstrDeviceId);
         }
         return S_OK;
@@ -367,7 +471,7 @@ static void LogConnectedDevices() {
             pDevice->Release();
         }
     }
-    Wh_Log(L"Tip: In settings, you can use any word from the device name above (e.g. \"AirPods\", \"Realtek\", \"Speakers\")");
+    Wh_Log(L"Tip: In settings, you can enter any keyword from the device name above (e.g. \"Audiocular\", \"Voicemeeter\", \"Moonstone\")");
     Wh_Log(L"============================================================");
     pCollection->Release();
 }
