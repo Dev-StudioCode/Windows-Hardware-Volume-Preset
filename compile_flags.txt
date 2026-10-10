@@ -1,0 +1,5 @@
+-I
+C:/Program Files/Windhawk/Compiler/include
+-DWH_MOD
+-DWH_EDITING
+-std=c++20

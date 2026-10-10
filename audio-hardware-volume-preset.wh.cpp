@@ -44,12 +44,18 @@ Automatically sets your headphones, speakers, Bluetooth headsets, USB DACs, or a
   $description: Immediately set volume for currently connected audio devices when the mod initializes.
 
 - deviceRules:
-  - name: "Headphones"
-    volume: 25
-  - name: "AirPods"
-    volume: 30
-  - name: "Speakers"
-    volume: 50
+  - - name: "Headphones"
+      $name: Device Name (keyword)
+    - volume: 25
+      $name: Volume (%)
+  - - name: "AirPods"
+      $name: Device Name (keyword)
+    - volume: 30
+      $name: Volume (%)
+  - - name: "Speakers"
+      $name: Device Name (keyword)
+    - volume: 50
+      $name: Volume (%)
   $name: Custom Device Presets
   $description: Define custom volume percentages for specific hardware. Matches if the device name contains the specified text (case-insensitive).
 */
