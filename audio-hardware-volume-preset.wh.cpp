@@ -115,21 +115,23 @@ static void LoadSettings() {
     g_applyOnStartup = Wh_GetIntSetting(L"applyOnStartup");
 
     g_rules.clear();
-    for (int i = 0;; i++) {
+    for (int i = 0; i < 100; i++) {
         WCHAR szKey[128];
         swprintf_s(szKey, L"deviceRules[%d].name", i);
         PCWSTR ruleName = Wh_GetStringSetting(szKey);
-        if (!ruleName) {
+        if (!ruleName || !*ruleName) {
+            if (ruleName) {
+                Wh_FreeStringSetting(ruleName);
+            }
             break;
         }
-        if (*ruleName) {
-            swprintf_s(szKey, L"deviceRules[%d].volume", i);
-            int ruleVol = Wh_GetIntSetting(szKey);
-            if (ruleVol < 0) ruleVol = 0;
-            if (ruleVol > 100) ruleVol = 100;
 
-            g_rules.push_back({ ToLower(ruleName), ruleVol });
-        }
+        swprintf_s(szKey, L"deviceRules[%d].volume", i);
+        int ruleVol = Wh_GetIntSetting(szKey);
+        if (ruleVol < 0) ruleVol = 0;
+        if (ruleVol > 100) ruleVol = 100;
+
+        g_rules.push_back({ ToLower(ruleName), ruleVol });
         Wh_FreeStringSetting(ruleName);
     }
 
@@ -324,6 +326,52 @@ static void ApplyToCurrentDefaultDevice() {
     }
 }
 
+static void LogConnectedDevices() {
+    if (!g_pEnumerator) return;
+
+    IMMDeviceCollection* pCollection = NULL;
+    HRESULT hr = g_pEnumerator->EnumAudioEndpoints(eRender, DEVICE_STATE_ACTIVE, &pCollection);
+    if (FAILED(hr) || !pCollection) return;
+
+    UINT count = 0;
+    pCollection->GetCount(&count);
+
+    Wh_Log(L"============================================================");
+    Wh_Log(L"[Audio Hardware Volume Preset] Detected %u Active Playback Device(s):", count);
+
+    for (UINT i = 0; i < count; i++) {
+        IMMDevice* pDevice = NULL;
+        if (SUCCEEDED(pCollection->Item(i, &pDevice)) && pDevice) {
+            IPropertyStore* pProps = NULL;
+            WCHAR szName[256] = L"Unknown Device";
+            if (SUCCEEDED(pDevice->OpenPropertyStore(STGM_READ, &pProps)) && pProps) {
+                PROPVARIANT varName;
+                PropVariantInit(&varName);
+                if (SUCCEEDED(pProps->GetValue(PKEY_Device_FriendlyName, &varName))) {
+                    if (varName.vt == VT_LPWSTR && varName.pwszVal) {
+                        wcsncpy_s(szName, varName.pwszVal, _TRUNCATE);
+                    }
+                    PropVariantClear(&varName);
+                }
+                pProps->Release();
+            }
+
+            float fVol = 0.0f;
+            IAudioEndpointVolume* pEndpointVolume = NULL;
+            if (SUCCEEDED(pDevice->Activate(__uuidof(IAudioEndpointVolume), CLSCTX_ALL, NULL, (void**)&pEndpointVolume))) {
+                pEndpointVolume->GetMasterVolumeLevelScalar(&fVol);
+                pEndpointVolume->Release();
+            }
+
+            Wh_Log(L"  -> Device #%u: \"%s\" (Current Volume: %d%%)", i + 1, szName, (int)(fVol * 100.0f + 0.5f));
+            pDevice->Release();
+        }
+    }
+    Wh_Log(L"Tip: In settings, you can use any word from the device name above (e.g. \"AirPods\", \"Realtek\", \"Speakers\")");
+    Wh_Log(L"============================================================");
+    pCollection->Release();
+}
+
 static DWORD WINAPI AudioMonitorThread(LPVOID lpParam) {
     HRESULT hrCom = CoInitializeEx(NULL, COINIT_MULTITHREADED);
     if (FAILED(hrCom)) {
@@ -344,6 +392,9 @@ static DWORD WINAPI AudioMonitorThread(LPVOID lpParam) {
         hr = g_pEnumerator->RegisterEndpointNotificationCallback(g_pClient);
         if (SUCCEEDED(hr)) {
             Wh_Log(L"Audio endpoint notification callback successfully registered.");
+
+            // Automatically detect and log all active audio devices currently connected
+            LogConnectedDevices();
 
             BOOL applyStartup = FALSE;
             AcquireSRWLockShared(&g_lock);
