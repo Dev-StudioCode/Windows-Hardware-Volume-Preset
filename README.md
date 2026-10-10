@@ -36,11 +36,11 @@ Once compiled, go to the **Settings** tab inside the mod's Windhawk page:
 - **Unmute on connect**: Automatically unmutes the newly connected device.
 - **Apply on mod startup**: If enabled, sets the current audio device's volume as soon as the mod initializes.
 - **Custom Device Presets**: Define custom rules using simple keywords:
-  - `name`: `Audiocular` $\rightarrow$ `volume`: `50`
-  - `name`: `Voicemeeter` $\rightarrow$ `volume`: `100`
-  - `name`: `Moonstone` $\rightarrow$ `volume`: `100`
-  - `name`: `Realtek` $\rightarrow$ `volume`: `50`
-  *(Note: You only need to enter any keyword from the device name; you do NOT need to type full prefixes like "Speakers" or "Headphones".)*
+  - `name`: `AirPods` $\rightarrow$ `volume`: `30`
+  - `name`: `Sony` $\rightarrow$ `volume`: `25`
+  - `name`: `Speakers` $\rightarrow$ `volume`: `50`
+  - `name`: `USB DAC` $\rightarrow$ `volume`: `40`
+  *(Note: You only need to enter any keyword from your device name; you do NOT need to type full prefixes like "Speakers" or "Headphones".)*
 
 ---
 

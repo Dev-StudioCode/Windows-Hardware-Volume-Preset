@@ -1,5 +1,14 @@
+--target=x86_64-w64-windows-gnu
+--sysroot=C:/Program Files/Windhawk/Compiler
 -I
 C:/Program Files/Windhawk/Compiler/include
+-I
+C:/Program Files/Windhawk/Compiler/x86_64-w64-mingw32/include
+-I
+C:/Program Files/Windhawk/Compiler/include/c++/v1
 -DWH_MOD
 -DWH_EDITING
 -std=c++20
+-DUNICODE
+-D_UNICODE
+-Wno-unknown-pragmas

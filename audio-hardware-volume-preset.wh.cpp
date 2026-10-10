@@ -17,7 +17,7 @@ Automatically sets your headphones, speakers, Bluetooth headsets, USB DACs, or a
 
 ## Key Features
 - **Prevent Sudden Hearing Blasts:** Never plug in headphones only to be blasted by 100% volume again.
-- **Smart Hardware Matching:** Supports flexible keyword and token matching. You can enter simple keywords (like `Audiocular`, `Voicemeeter`, `Moonstone`) or full device names.
+- **Smart Hardware Matching:** Supports flexible keyword and token matching. You can enter simple keywords (like `AirPods`, `Sony`, `DAC`, `Speakers`) or full device names.
 - **Max Volume Safety Cap:** Set a safety ceiling (up to 100%) so no device ever exceeds your safe threshold.
 - **Global Fallback:** Set any unrecognized audio device to a safe default volume (e.g., 30%).
 - **Auto-Unmute:** Optionally unmute the device on connection.
@@ -49,24 +49,24 @@ Automatically sets your headphones, speakers, Bluetooth headsets, USB DACs, or a
   $description: Immediately set volume for currently connected audio devices when the mod initializes.
 
 - deviceRules:
-  - - name: "Audiocular"
+  - - name: "AirPods"
+      $name: Device Name or Keyword
+    - volume: 30
+      $name: Volume (%)
+  - - name: "Sony"
+      $name: Device Name or Keyword
+    - volume: 25
+      $name: Volume (%)
+  - - name: "Speakers"
       $name: Device Name or Keyword
     - volume: 50
       $name: Volume (%)
-  - - name: "Voicemeeter"
+  - - name: "USB DAC"
       $name: Device Name or Keyword
-    - volume: 100
-      $name: Volume (%)
-  - - name: "Moonstone"
-      $name: Device Name or Keyword
-    - volume: 100
-      $name: Volume (%)
-  - - name: "Realtek"
-      $name: Device Name or Keyword
-    - volume: 50
+    - volume: 40
       $name: Volume (%)
   $name: Custom Device Presets
-  $description: Custom volume percentages for specific hardware. Simply enter a keyword from your device name (e.g. Audiocular, Voicemeeter, Moonstone).
+  $description: Custom volume percentages for specific hardware. Simply enter a keyword from your device name (e.g. AirPods, Sony, Speakers, DAC).
 */
 // ==/WindhawkModSettings==
 
@@ -126,8 +126,7 @@ static std::vector<std::wstring> GetTokens(const std::wstring& str) {
             if (!cur.empty()) {
                 if (cur != L"headphones" && cur != L"speakers" && cur != L"headset" && 
                     cur != L"earphone" && cur != L"earphones" && cur != L"audio" && 
-                    cur != L"device" && cur != L"input" && cur != L"output" &&
-                    cur != L"vb" && cur != L"vaio") {
+                    cur != L"device" && cur != L"input" && cur != L"output") {
                     tokens.push_back(cur);
                 }
                 cur.clear();
@@ -137,8 +136,7 @@ static std::vector<std::wstring> GetTokens(const std::wstring& str) {
     if (!cur.empty()) {
         if (cur != L"headphones" && cur != L"speakers" && cur != L"headset" && 
             cur != L"earphone" && cur != L"earphones" && cur != L"audio" && 
-            cur != L"device" && cur != L"input" && cur != L"output" &&
-            cur != L"vb" && cur != L"vaio") {
+            cur != L"device" && cur != L"input" && cur != L"output") {
             tokens.push_back(cur);
         }
     }
@@ -471,7 +469,7 @@ static void LogConnectedDevices() {
             pDevice->Release();
         }
     }
-    Wh_Log(L"Tip: In settings, you can enter any keyword from the device name above (e.g. \"Audiocular\", \"Voicemeeter\", \"Moonstone\")");
+    Wh_Log(L"Tip: In settings, you can enter any keyword from the device name above (e.g. \"AirPods\", \"Sony\", \"Speakers\", \"DAC\")");
     Wh_Log(L"============================================================");
     pCollection->Release();
 }
