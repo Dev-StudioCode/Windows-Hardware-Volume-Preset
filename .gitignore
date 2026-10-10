@@ -1,0 +1,14 @@
+# Windows & Compiler build artifacts
+*.o
+*.obj
+*.dll
+*.exe
+*.log
+.vs/
+.vscode/
+build/
+bin/
+
+# Temporary files
+*.tmp
+*~
