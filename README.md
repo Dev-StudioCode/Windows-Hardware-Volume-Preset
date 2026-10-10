@@ -31,12 +31,16 @@ This mod solves that problem by listening directly to Windows audio endpoint con
 ### Step 3: Configure Your Settings
 Once compiled, go to the **Settings** tab inside the mod's Windhawk page:
 - **Default Volume (%)**: Fallback volume (e.g., `30%`) applied to any connected playback device.
+- **Max Volume Safety Limit (%)**: Maximum ceiling cap (default `100%`). No device will exceed this limit.
 - **Apply to all devices by default**: Enabled by default. If disabled, only devices matching custom rules will have their volume preset.
 - **Unmute on connect**: Automatically unmutes the newly connected device.
 - **Apply on mod startup**: If enabled, sets the current audio device's volume as soon as the mod initializes.
-- **Custom Device Presets**: Add custom rules by name keyword:
-  - `name`: Text substring to match (e.g., `AirPods`, `WH-1000XM4`, `Realtek`, `USB Audio DAC`)
-  - `volume`: Target volume percentage (0 - 100)
+- **Custom Device Presets**: Define custom rules using simple keywords:
+  - `name`: `Audiocular` $\rightarrow$ `volume`: `50`
+  - `name`: `Voicemeeter` $\rightarrow$ `volume`: `100`
+  - `name`: `Moonstone` $\rightarrow$ `volume`: `100`
+  - `name`: `Realtek` $\rightarrow$ `volume`: `50`
+  *(Note: You only need to enter any keyword from the device name; you do NOT need to type full prefixes like "Speakers" or "Headphones".)*
 
 ---
 
