@@ -26,7 +26,7 @@ This mod solves that problem by listening directly to Windows audio endpoint con
 1. In the **Developer** tab, click **"New mod"**.
 2. Replace the template editor content with the entire code from [`audio-hardware-volume-preset.wh.cpp`](./audio-hardware-volume-preset.wh.cpp).
 3. Click the **"Compile and inject"** (or **"Compile and test"**) button in the top right of the editor.
-4. Windhawk will compile the mod using Clang and immediately inject it into `explorer.exe`.
+4. Windhawk will compile the mod using Clang and run it in a dedicated standalone tool process (`windhawk.exe`).
 
 ### Step 3: Configure Your Settings
 Once compiled, go to the **Settings** tab inside the mod's Windhawk page:
@@ -85,7 +85,7 @@ To make your mod available to all Windhawk users directly through the Windhawk i
 ---
 
 ## 🛠️ Technical Details
-- **Target Process**: `explorer.exe`
-- **Compiler**: Clang / LLVM (MinGW-w64) with `-lole32 -loleaut32`
+- **Target Process**: `windhawk.exe` (dedicated standalone tool process)
+- **Compiler**: Clang / LLVM (MinGW-w64) with `-lole32 -lshell32`
 - **Windows APIs**: Core Audio APIs (`IMMDeviceEnumerator`, `IMMNotificationClient`, `IAudioEndpointVolume`, `IPropertyStore`)
 - **Resource Usage**: Event-driven notification system; zero polling loops and zero background CPU usage.
