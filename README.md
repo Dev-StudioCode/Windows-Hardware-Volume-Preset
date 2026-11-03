@@ -89,3 +89,8 @@ To make your mod available to all Windhawk users directly through the Windhawk i
 - **Compiler**: Clang / LLVM (MinGW-w64) with `-lole32 -lshell32`
 - **Windows APIs**: Core Audio APIs (`IMMDeviceEnumerator`, `IMMNotificationClient`, `IAudioEndpointVolume`, `IPropertyStore`)
 - **Resource Usage**: Event-driven notification system; zero polling loops and zero background CPU usage.
+
+---
+
+## 📄 License
+Distributed under the [MIT License](LICENSE).
