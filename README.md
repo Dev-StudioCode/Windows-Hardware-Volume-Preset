@@ -44,6 +44,18 @@ Once compiled, go to the **Settings** tab inside the mod's Windhawk page:
 
 ---
 
+## 💻 Standalone Mini App (No Windhawk Required)
+
+Prefer a standalone app without Windhawk? A portable version is included in the [`standalone/`](./standalone) folder:
+- **No Dependencies**: Single lightweight executable (~160 KB).
+- **System Tray Resident**: Sits in the notification area with a speaker tray icon.
+- **Configurable**: Uses a simple [`config.ini`](./standalone/config.ini) for custom device rules.
+- **Auto-Startup**: Right-click the tray icon to toggle running at Windows startup.
+
+See the [Standalone App Guide](./standalone/README.md) for build and usage instructions.
+
+---
+
 ## 🌐 Working with GitHub
 
 ### Option A: Hosting Your Own GitHub Repository
