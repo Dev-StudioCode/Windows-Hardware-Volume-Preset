@@ -1,8 +1,7 @@
 // ==WindhawkMod==
 // @id              audio-hardware-volume-preset
 // @name            Audio Hardware Volume Preset
-// @description     Sets audio playback devices to a configured volume whenever
-// they connect
+// @description     Sets audio playback devices to a configured volume whenever they connect
 // @version         1.3.0
 // @author          Dev-StudioCode
 // @github          https://github.com/Dev-StudioCode
@@ -31,9 +30,9 @@ volume (e.g., 30%).
 - **Auto-Unmute:** Optionally unmute the device on connection.
 - **Intelligent Debouncing:** Prevents duplicate triggers when Windows fires
 multiple rapid connection events.
-- **Safe & Efficient:** Runs as a dedicated background tool mod using standard
-Windows Core Audio event notifications (`IMMNotificationClient`). Zero polling,
-zero idle CPU usage.
+- **Safe & Efficient:** Runs as a dedicated background tool mod using standard Windows Core
+Audio event notifications (`IMMNotificationClient`). Zero polling, zero idle CPU
+usage.
 
 **Note:** Volume presets are also applied when switching the default audio
 output between already-connected devices. The first matching custom rule wins,
@@ -45,18 +44,15 @@ so place more specific rules before general ones.
 /*
 - defaultVolume: 30
   $name: Default Volume (%)
-  $description: Master volume percentage (0-100) applied when any audio hardware
-connects, if no specific rule matches.
+  $description: Master volume percentage (0-100) applied when any audio hardware connects, if no specific rule matches.
 
 - maxVolumeLimit: 100
   $name: Max Volume Safety Limit (%)
-  $description: Maximum volume ceiling (0-100) applied to presets at connect
-time. Does not prevent manual volume changes afterward.
+  $description: Maximum volume ceiling (0-100) applied to presets at connect time. Does not prevent manual volume changes afterward.
 
 - applyToAllDevices: true
   $name: Apply to all devices by default
-  $description: If enabled, any connected playback device without an explicit
-rule will use the Default Volume.
+  $description: If enabled, any connected playback device without an explicit rule will use the Default Volume.
 
 - autoUnmute: true
   $name: Unmute on connect
@@ -64,8 +60,7 @@ rule will use the Default Volume.
 
 - applyOnStartup: true
   $name: Apply on mod startup
-  $description: Apply volume preset to the current default audio device when the
-mod initializes.
+  $description: Apply volume preset to the current default audio device when the mod initializes.
 
 - deviceRules:
   - - name: ""
@@ -73,14 +68,13 @@ mod initializes.
     - volume: 30
       $name: Volume (%)
   $name: Custom Device Presets
-  $description: Volume presets for specific hardware. Enter a keyword from your
-device name (e.g. AirPods, Sony, DAC). The first matching rule wins.
+  $description: Volume presets for specific hardware. Enter a keyword from your device name (e.g. AirPods, Sony, DAC). The first matching rule wins.
 */
 // ==/WindhawkModSettings==
 
+#include <initguid.h>
 #include <endpointvolume.h>
 #include <functiondiscoverykeys_devpkey.h>
-#include <initguid.h>
 #include <mmdeviceapi.h>
 #include <windhawk_utils.h>
 
@@ -105,8 +99,7 @@ static BOOL g_autoUnmute = TRUE;
 static BOOL g_applyOnStartup = TRUE;
 static std::vector<DeviceRule> g_rules;
 
-// Debouncing state to prevent rapid duplicate events from Windows (worker
-// thread only)
+// Debouncing state to prevent rapid duplicate events from Windows (worker thread only)
 static std::wstring g_lastDeviceId;
 static ULONGLONG g_lastApplyTick = 0;
 
@@ -165,7 +158,8 @@ static std::vector<std::wstring> GetTokens(const std::wstring &str) {
 
 // Checks if a candidate device string matches a rule
 static bool CheckCandidateMatch(const std::wstring &candidate,
-                                const DeviceRule &rule, bool allowTokens) {
+                                const DeviceRule &rule,
+                                bool allowTokens) {
   if (candidate.empty() || rule.nameLower.empty())
     return false;
 
